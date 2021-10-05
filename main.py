@@ -5,6 +5,7 @@ having some issues with RAM limits; need to split this off.
 @author: HaddadAE
 """
 
+
 import os
 import pandas as pd
 from googlesearch import search
@@ -17,7 +18,7 @@ from datetime import datetime
 os.chdir(os.getcwd().replace("code", "data"))
 
 def readData(fileName):
-    df=pd.read_excel(fileName)
+    df=pd.read_excel(fileName, engine='openpyxl')
     return(df)
     
 def genID(df):
@@ -52,7 +53,6 @@ def getFASCLASSLinks(response):
                 continue    
     return(links)
     
-    
 def getRightLink(PDnumber):
     response=getBing(PDnumber)
     print("got to response bing")
@@ -76,7 +76,7 @@ def writeOut(df):
     currenttime=datetime.now().strftime("%m%d%Y %H%M%S")
     df.to_excel(f"textScrape {currenttime}.xlsx")
     df.to_csv(f"textScrape {currenttime}.csv")
-    dfPDs=pd.read_excel("undoneIDs.xlsx")
+    dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl')
     ###THIS IS WHAT I WAS TRYING TO FIX
     
     donePDNumbers=list(df['CCPO ID'])
@@ -152,7 +152,6 @@ def cleanBlankStragglers(df):
     cleanerFailedLinks=["ht"+i.split("ht")[1].split("%3D")[0]+"%3D" for i in failedLinks]
     #ok so that one worked
     PDTextFailed=cleanFailedLinks(cleanerFailedLinks)
-    
     blanksCCPs= pd.Series(list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['CCPO ID']))
     PDTextFailed['CCPO ID']= blanksCCPs
     keepdf=df.loc[~df['PD Text'].isin(failedLinks)]
@@ -165,7 +164,6 @@ def cleanBlankStragglers(df):
     fixedBlank=fixedBlank.loc[~fixedBlank['CCPO ID'].isin(list(PDTextLinkWorked['CCPO ID']))]
     fixedMissingBlank=pd.concat([fixedBlank,PDTextLinkWorked])
     return(fixedMissingBlank)
-    #I have 137 with nothing
 
 def cleanText(string):
     try:
@@ -199,11 +197,11 @@ def getCleanWrite(dictOfDF):
 
 def runAll():    
     try:
-        dfPDs=pd.read_excel("undoneIDs.xlsx")
+        dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl')
     except:
         #df=readData('CP DATA 22SEP2021.xlsx')
         #df=genID(df)
-        dfPDs=pd.read_excel("exportIDs.xlsx")
+        dfPDs=pd.read_excel("exportIDs.xlsx", engine='openpyxl')
         dfPDs.to_excel("undoneIDs.xlsx", index=False)
     getPDLookups(dfPDs)
         

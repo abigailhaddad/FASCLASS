@@ -1,0 +1,6 @@
+googlesearch-python
+beautifulsoup4
+requests
+openpyxl
+pandas
+xlrd
