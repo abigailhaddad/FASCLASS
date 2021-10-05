@@ -7,15 +7,12 @@ having some issues with RAM limits; need to split this off.
 
 import os
 import pandas as pd
-#from googlesearch import search
+from googlesearch import search
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import requests
-import re
-from urllib.parse import urlencode, urlparse, parse_qs
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
-#from googlesearch import search
-from datetime import date, datetime
+from datetime import datetime
 
 os.chdir(os.getcwd().replace("code", "data"))
 
@@ -58,9 +55,12 @@ def getFASCLASSLinks(response):
     
 def getRightLink(PDnumber):
     response=getBing(PDnumber)
+    print("got to response bing")
     links=getFASCLASSLinks(response)
+    print(links)
     findStr="search_fs_output"
     topResult=[j for j in links if findStr in j][0]
+    print(topResult)
     return(topResult)
     
 def scrapePD(link):
@@ -72,62 +72,51 @@ def scrapePD(link):
     text=text.encode('utf-8', 'replace').decode()
     return(text)
 
-def writeOut(PDText):
-    listForDF = list(zip(PDText.keys(), PDText.values()))
-    PDText = pd.DataFrame(listForDF, columns = ['CCPO ID', 'PD Text'])
-    PDText.to_excel("textScapePD.xlsx")
-    PDText.to_csv("textScapePD.csv")
-    return(PDText)
-
-def getPDLookups(dfPDs, initialDF):
-    print("confused")
-    dictOfPDs={}
-    #print(dictOfPDs['KC328452'])
-    number=1    
-    uniquePDNumbers=list(dfPDs['CCPO ID'])   
-    print("got here")
+def writeOut(df):
     currenttime=datetime.now().strftime("%m%d%Y %H%M%S")
-    #initialDF.to_excel(f"archive DF {currenttime}.xlsx")
-    initialDF.to_pickle(f"archive DF {currenttime}.pkl")
-    initialDF.to_csv(f"archive DF {currenttime}.csv")
-    undonePDNumbers=list(set(uniquePDNumbers) - set(list(initialDF['CCPO ID'])))
-    print(undonePDNumbers)
+    df.to_excel(f"textScrape {currenttime}.xlsx")
+    df.to_csv(f"textScrape {currenttime}.csv")
+    dfPDs=pd.read_excel("undoneIDs.xlsx")
+    ###THIS IS WHAT I WAS TRYING TO FIX
+    
+    donePDNumbers=list(df['CCPO ID'])
+    print(f'length of PD numbers is {len(donePDNumbers)}')
+    print(f'length of initial UNDONE is {len(dfPDs)}')
+    print(donePDNumbers)
+    undonePD=dfPDs.loc[~dfPDs['CCPO ID'].isin(donePDNumbers)]
+    print(f'length of final UNDONE is {len(undonePD)}')
+    print(f'my dumb program thinks there are {len(undonePD)} left')
+    undonePD[['CCPO ID']].to_excel("undoneIDs.xlsx", index=False)
+    
+def getPDLookups(dfPDs):
+    print(type(dfPDs))
+    print(dfPDs.columns)
+    dictOfPDs={}
+    number=0   
+    undonePDNumbers=list(dfPDs['CCPO ID'])[0:15]
     for PDnumber in undonePDNumbers:
+        print(number)
         number=number+1
         try:
             link=getRightLink(PDnumber)
+            print("got to a link")
         except:
             link=""
         try:
             dictOfPDs[PDnumber]=scrapePD(link)
         except:
             dictOfPDs[PDnumber]=link
-        if number%100==0:
+        if (number%10==0) and number!=0:
             print(number)
-            writeOut(dictOfPDs)  
-    return(dictOfPDs)
-        
-def runAll():    
-    try:
-        dfPDs=pd.read_excel("exportIDs.xlsx")
-    except:
-        df=readData('CP DATA 22SEP2021.xlsx') 
-        df=genID(df)
-        dfPDs=pd.read_excel("exportIDs.xlsx")
-    try: 
-        initialDF=pd.read_excel("textScapePD.xlsx")
-        print("did inital")
-    except:
-        initialDF=pd.DataFrame()
-    PDText=getPDLookups(dfPDs, initialDF)
-    print(len(PDText))
-    PDText=writeOut(PDText)
-    print(len(PDText))
-    return(PDText)
+        if (number%10==0) and number!=0:
+            getCleanWrite(dictOfPDs)
+            dictOfPDs={}
+    getCleanWrite(dictOfPDs)
     
 def cleanFailedLinks(failedLinks):
     dictText={}
     for link in failedLinks:
+        print(link)
         try:
             dictText[link]=scrapePD(link)
         except:
@@ -139,6 +128,7 @@ def cleanFailedLinks(failedLinks):
 def cleanNoLinks(noLinks):
     dictText={}
     for term in noLinks:
+        print(term)
         try:
             topResult=getGoogleLinks(term)
             print(topResult)
@@ -150,30 +140,32 @@ def cleanNoLinks(noLinks):
     listForDF = list(zip(dictText.keys(), dictText.values()))
     PDTextFailed = pd.DataFrame(listForDF, columns = ['CCPO ID', 'PD Text'])
     return(PDTextFailed)
-        
-
-def cleanBlankStragglers(fileName):
-    df=pd.read_excel(fileName)
     
+   
+def makeDF(PDText):
+    listForDF = list(zip(PDText.keys(), PDText.values()))
+    PDText = pd.DataFrame(listForDF, columns = ['CCPO ID', 'PD Text'])
+    return(PDText)
+    
+def cleanBlankStragglers(df):
     failedLinks=list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['PD Text'])
     cleanerFailedLinks=["ht"+i.split("ht")[1].split("%3D")[0]+"%3D" for i in failedLinks]
     #ok so that one worked
     PDTextFailed=cleanFailedLinks(cleanerFailedLinks)
     
     blanksCCPs= pd.Series(list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['CCPO ID']))
-    
     PDTextFailed['CCPO ID']= blanksCCPs
     keepdf=df.loc[~df['PD Text'].isin(failedLinks)]
     fixedBlank=pd.concat([keepdf[['CCPO ID', 'PD Text']],PDTextFailed])
     fixedBlank['Length']=fixedBlank['PD Text'].astype(str).str.len()
     noLinks=list(fixedBlank.loc[fixedBlank["Length"]<1000]['CCPO ID'])
     PDTextLinkFailed=cleanNoLinks(noLinks)
+    PDTextLinkFailed['Length']=PDTextLinkFailed['PD Text'].astype(str).str.len()
     PDTextLinkWorked=PDTextLinkFailed.loc[PDTextLinkFailed['Length']>100][['CCPO ID', 'PD Text']]
     fixedBlank=fixedBlank.loc[~fixedBlank['CCPO ID'].isin(list(PDTextLinkWorked['CCPO ID']))]
     fixedMissingBlank=pd.concat([fixedBlank,PDTextLinkWorked])
     return(fixedMissingBlank)
     #I have 137 with nothing
-
 
 def cleanText(string):
     try:
@@ -198,15 +190,28 @@ def cleanText(string):
         return(cleanStart)
     except:
         return()
+
+def getCleanWrite(dictOfDF):
+    df=makeDF(dictOfDF)
+    df=cleanBlankStragglers(df)
+    df['PD Text']=df['PD Text'].apply(cleanText)
+    writeOut(df)
+
+def runAll():    
+    try:
+        dfPDs=pd.read_excel("undoneIDs.xlsx")
+    except:
+        #df=readData('CP DATA 22SEP2021.xlsx')
+        #df=genID(df)
+        dfPDs=pd.read_excel("exportIDs.xlsx")
+        dfPDs.to_excel("undoneIDs.xlsx", index=False)
+    getPDLookups(dfPDs)
         
-PDText=runAll()
-#fixedMissingBlank=cleanBlankStragglers("textScapePDx.xlsx")
+runAll()
 
-
-#fixedMissingBlank['cleanText']=fixedMissingBlank['PD Text'].apply(cleanText)
-
+#fixedMissingBlank=cleanBlankStragglers("textScapePD1004.xlsx")
 #dfPeople=readData('CP DATA 22SEP2021.xlsx') 
-#dfPeople['CCPO ID']=dfPeople['Ccpo Id']+dfPeople['CPCN']   
+
 #merged=dfPeople.merge(df, left_on='CCPO ID', right_on='CCPO ID')
 
 #hasCP36=merged.loc[merged['cleanText'].astype(str).str.contains("CP:36")]
