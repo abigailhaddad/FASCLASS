@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Sep 23 09:20:19 2021
-having some issues with RAM limits; need to split this off. 
+this is the version of my scraper that I use in PYTHONANYWHERE
+
+the input is an excel file called "exportIDs.xlsx" which contains a DF with a column
+called 'CCPO ID' which contains the position description numbers you want to look up
+
+the output is a list of CSV and XLSX files with corresponding position description text
+split into groups of 10,000
 @author: HaddadAE
 """
 
@@ -15,9 +21,11 @@ import requests
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from datetime import datetime
 
+
 os.chdir(os.getcwd().replace("code", "data"))
 
 def readData(fileName):
+    # you need to specify the engine depending on the versions of the libraries
     df=pd.read_excel(fileName, engine='openpyxl')
     return(df)
     
@@ -29,7 +37,7 @@ def genID(df):
 def getBing(term):
     url = f'https://www.bing.com/search?q={term}%20AND%20"position%20description"'
     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36'}
-    #YOU WOuLDN"T THINK THIS USER AGENT VALUE IS IMPORTANT BUT IT ISSSSS
+    #YOU WOuLDN'T THINK THIS USER AGENT VALUE IS IMPORTANT BUT IT ISSSSS
     response = requests.get(url,headers=headers) 
     return(response)
     
@@ -55,12 +63,9 @@ def getFASCLASSLinks(response):
     
 def getRightLink(PDnumber):
     response=getBing(PDnumber)
-    print("got to response bing")
     links=getFASCLASSLinks(response)
-    print(links)
     findStr="search_fs_output"
     topResult=[j for j in links if findStr in j][0]
-    print(topResult)
     return(topResult)
     
 def scrapePD(link):
@@ -77,38 +82,30 @@ def writeOut(df):
     df.to_excel(f"textScrape {currenttime}.xlsx")
     df.to_csv(f"textScrape {currenttime}.csv")
     dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl')
-    ###THIS IS WHAT I WAS TRYING TO FIX
-    
+    ###YOU HAVE TO SPECIFY THE ENGINE DEPENDING ON THE LIBRARY VERSION #s
     donePDNumbers=list(df['CCPO ID'])
-    print(f'length of PD numbers is {len(donePDNumbers)}')
-    print(f'length of initial UNDONE is {len(dfPDs)}')
-    print(donePDNumbers)
     undonePD=dfPDs.loc[~dfPDs['CCPO ID'].isin(donePDNumbers)]
-    print(f'length of final UNDONE is {len(undonePD)}')
-    print(f'my dumb program thinks there are {len(undonePD)} left')
     undonePD[['CCPO ID']].to_excel("undoneIDs.xlsx", index=False)
     
 def getPDLookups(dfPDs):
-    print(type(dfPDs))
-    print(dfPDs.columns)
     dictOfPDs={}
     number=0   
-    undonePDNumbers=list(dfPDs['CCPO ID'])[0:15]
+    undonePDNumbers=list(dfPDs['CCPO ID'])
     for PDnumber in undonePDNumbers:
-        print(number)
         number=number+1
         try:
             link=getRightLink(PDnumber)
-            print("got to a link")
         except:
             link=""
         try:
             dictOfPDs[PDnumber]=scrapePD(link)
         except:
             dictOfPDs[PDnumber]=link
-        if (number%10==0) and number!=0:
+        if number<100:
             print(number)
-        if (number%10==0) and number!=0:
+        if (number%100==0) and number!=0:
+            print(number)
+        if (number%10000==0) and number!=0:
             getCleanWrite(dictOfPDs)
             dictOfPDs={}
     getCleanWrite(dictOfPDs)
@@ -116,7 +113,6 @@ def getPDLookups(dfPDs):
 def cleanFailedLinks(failedLinks):
     dictText={}
     for link in failedLinks:
-        print(link)
         try:
             dictText[link]=scrapePD(link)
         except:
@@ -128,15 +124,12 @@ def cleanFailedLinks(failedLinks):
 def cleanNoLinks(noLinks):
     dictText={}
     for term in noLinks:
-        print(term)
         try:
             topResult=getGoogleLinks(term)
-            print(topResult)
             text=scrapePD(topResult)
             dictText[term]=text
         except:
             dictText[term]=term
-            print(term)
     listForDF = list(zip(dictText.keys(), dictText.values()))
     PDTextFailed = pd.DataFrame(listForDF, columns = ['CCPO ID', 'PD Text'])
     return(PDTextFailed)
@@ -149,6 +142,7 @@ def makeDF(PDText):
     
 def cleanBlankStragglers(df):
     failedLinks=list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['PD Text'])
+    print(f'there are {len(failedLinks)} failedlinks')
     cleanerFailedLinks=["ht"+i.split("ht")[1].split("%3D")[0]+"%3D" for i in failedLinks]
     #ok so that one worked
     PDTextFailed=cleanFailedLinks(cleanerFailedLinks)
@@ -158,6 +152,7 @@ def cleanBlankStragglers(df):
     fixedBlank=pd.concat([keepdf[['CCPO ID', 'PD Text']],PDTextFailed])
     fixedBlank['Length']=fixedBlank['PD Text'].astype(str).str.len()
     noLinks=list(fixedBlank.loc[fixedBlank["Length"]<1000]['CCPO ID'])
+    print(f'there are {len(noLinks)} noLinks')
     PDTextLinkFailed=cleanNoLinks(noLinks)
     PDTextLinkFailed['Length']=PDTextLinkFailed['PD Text'].astype(str).str.len()
     PDTextLinkWorked=PDTextLinkFailed.loc[PDTextLinkFailed['Length']>100][['CCPO ID', 'PD Text']]
@@ -171,7 +166,6 @@ def cleanText(string):
         delChars=["xa0","'", "\\","}", "{", "}" ]
         for char in delChars:
             cleanStart=cleanStart.replace(char,"")
-        #ideally we do this in a dictionary but that seems like the least of the issues
         cleanStart=cleanStart.replace("EXEMPTFLSA", "EXEMPT FLSA")
         cleanStart=cleanStart.replace("VARIES","VARIES ")
         cleanStart=cleanStart.replace("Sequence#"," Sequence#")
@@ -199,6 +193,8 @@ def runAll():
     try:
         dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl')
     except:
+        #if you have the initial data set this was derived from with the actual people
+        #then you can generate the undoneIDs xlsx
         #df=readData('CP DATA 22SEP2021.xlsx')
         #df=genID(df)
         dfPDs=pd.read_excel("exportIDs.xlsx", engine='openpyxl')
@@ -207,10 +203,7 @@ def runAll():
         
 runAll()
 
-#fixedMissingBlank=cleanBlankStragglers("textScapePD1004.xlsx")
 #dfPeople=readData('CP DATA 22SEP2021.xlsx') 
-
 #merged=dfPeople.merge(df, left_on='CCPO ID', right_on='CCPO ID')
-
 #hasCP36=merged.loc[merged['cleanText'].astype(str).str.contains("CP:36")]
 
