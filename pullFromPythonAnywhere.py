@@ -48,14 +48,11 @@ def readAggregate():
     return(wholeDF)
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
+    ### Provide the APIkey file as arg 1 if omitted it will default to APIkey.txt.
+    try:
+        filename = sys.argv[1]
+    except:
         filename='APIkey.txt'
-    else:
-        try:
-            filename = sys.argv[1]
-        except IndexError:
-            raise SystemExit(f"Usage: {sys.argv[0]} <api_key_file.txt>")
-            return 1
     pullFiles(filename)
     df=readAggregate()
     
