@@ -189,7 +189,8 @@ def getCleanWrite(dictOfDF):
     df['PD Text']=df['PD Text'].apply(cleanText)
     writeOut(df)
 
-def runAll():    
+
+if __name__ == "__main__":
     try:
         dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl')
     except:
@@ -201,7 +202,6 @@ def runAll():
         dfPDs.to_excel("undoneIDs.xlsx", index=False)
     getPDLookups(dfPDs)
         
-runAll()
 
 #dfPeople=readData('CP DATA 22SEP2021.xlsx') 
 #merged=dfPeople.merge(df, left_on='CCPO ID', right_on='CCPO ID')
