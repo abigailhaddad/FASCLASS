@@ -5,10 +5,10 @@ This is for pulling my FASCLASS xlsx files from pythonanywhere if you have the A
 @author: HaddadAE
 """
 import os
+import sys
 import requests
 import pandas as pd
 
-fileName='APIkey.txt'
 
 def pullToken(fileName):
     with open(fileName) as f:
@@ -34,6 +34,7 @@ def pullFile(file, token, url):
         output.write(resp.content)
     
 def pullFiles(fileName):
+    ### pulls all files 
     os.chdir(os.getcwd().replace("code", "data"))
     token=pullToken(fileName)
     filesToKeep, url=listOfFiles(token)
@@ -45,7 +46,16 @@ def readAggregate():
     files=[pd.read_excel(i) for i in os.listdir() if "textScrape" in i]
     wholeDF=pd.concat(files)
     return(wholeDF)
-    
-pullFiles(fileName)
-df=readAggregate()
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        filename='APIkey.txt'
+    else:
+        try:
+            filename = sys.argv[1]
+        except IndexError:
+            raise SystemExit(f"Usage: {sys.argv[0]} <api_key_file.txt>")
+            return 1
+    pullFiles(filename)
+    df=readAggregate()
     
