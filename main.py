@@ -35,7 +35,7 @@ def genID(df):
     return(df)
     
 def getBing(term):
-    url = f'https://www.bing.com/search?q={term}%20AND%20"position%20description"'
+    url=f'https://www.bing.com/search?q=%22PD%23%3A+{term}%22&qs=n&form=QBRE&sp=-1&pq=%22pd%23%3A+desrpc004&sc=0-15&sk=&cvid=C439A0BB38304769B9BE279AB65424BC'
     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36'}
     #YOU WOuLDN'T THINK THIS USER AGENT VALUE IS IMPORTANT BUT IT ISSSSS
     response = requests.get(url,headers=headers) 
@@ -68,13 +68,18 @@ def getRightLink(PDnumber):
     topResult=[j for j in links if findStr in j][0]
     return(topResult)
     
-def scrapePD(link):
+def scrapePD(link, PDnumber):
     page = urlopen(link)
     html_bytes = page.read()
     soup = BeautifulSoup(html_bytes, 'html.parser')
     text=soup.get_text().replace("\n","").replace("\t","").replace("\r","").split("POSITION DESCRIPTION")[1]
     text=ILLEGAL_CHARACTERS_RE.sub(r'',text)
     text=text.encode('utf-8', 'replace').decode()
+    PD=text.split("PD#:", 1)[1].split("Sequence#", 1)[0].strip()
+    if PD!=PDnumber:
+        text=PDnumber
+    else:
+        pass
     return(text)
 
 def writeOut(df):
@@ -98,7 +103,7 @@ def getPDLookups(dfPDs):
         except:
             link=""
         try:
-            dictOfPDs[PDnumber]=scrapePD(link)
+            dictOfPDs[PDnumber]=scrapePD(link, PDnumber)
         except:
             dictOfPDs[PDnumber]=link
         if number<100:
@@ -110,13 +115,13 @@ def getPDLookups(dfPDs):
             dictOfPDs={}
     getCleanWrite(dictOfPDs)
     
-def cleanFailedLinks(failedLinks):
+def cleanFailedLinks(failedLinks, PDnumbers):
     dictText={}
-    for link in failedLinks:
+    for linkNo in range(0, len(failedLinks)):
         try:
-            dictText[link]=scrapePD(link)
+            dictText[failedLinks[linkNo]]=scrapePD(failedLinks[linkNo], PDnumbers[linkNo])
         except:
-            dictText[link]=""
+            dictText[failedLinks[linkNo]]=""
     listForDF = list(zip(dictText.keys(), dictText.values()))
     PDTextFailed = pd.DataFrame(listForDF, columns = ['CCPO ID', 'PD Text'])
     return(PDTextFailed)
@@ -126,7 +131,7 @@ def cleanNoLinks(noLinks):
     for term in noLinks:
         try:
             topResult=getGoogleLinks(term)
-            text=scrapePD(topResult)
+            text=scrapePD(topResult, term)
             dictText[term]=text
         except:
             dictText[term]=term
@@ -142,10 +147,11 @@ def makeDF(PDText):
     
 def cleanBlankStragglers(df):
     failedLinks=list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['PD Text'])
+    failedPDs=list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['CCPO ID'])
     print(f'there are {len(failedLinks)} failedlinks')
     cleanerFailedLinks=["ht"+i.split("ht")[1].split("%3D")[0]+"%3D" for i in failedLinks]
     #ok so that one worked
-    PDTextFailed=cleanFailedLinks(cleanerFailedLinks)
+    PDTextFailed=cleanFailedLinks(cleanerFailedLinks, failedPDs)
     blanksCCPs= pd.Series(list(df.loc[df["PD Text"].astype(str).str.contains("search_fs_output")]['CCPO ID']))
     PDTextFailed['CCPO ID']= blanksCCPs
     keepdf=df.loc[~df['PD Text'].isin(failedLinks)]
@@ -191,7 +197,7 @@ def getCleanWrite(dictOfDF):
 
 def runAll():    
     try:
-        dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl')
+        dfPDs=pd.read_excel("undoneIDs.xlsx", engine='openpyxl').head(100)
     except:
         #if you have the initial data set this was derived from with the actual people
         #then you can generate the undoneIDs xlsx
@@ -200,10 +206,34 @@ def runAll():
         dfPDs=pd.read_excel("exportIDs.xlsx", engine='openpyxl')
         dfPDs.to_excel("undoneIDs.xlsx", index=False)
     getPDLookups(dfPDs)
+                            
+def getPD(text):
+    try:
+        PD=text.split("PD#:", 1)[1].split("Sequence#", 1)[0].strip()
+        return(PD)
+    except:
+        return()
         
 runAll()
+"""      
+test=pd.read_csv("aggregatePD.csv")
+test['PD Number']=test['PD Text'].apply(getPD)
+test=test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)]
 
-#dfPeople=readData('CP DATA 22SEP2021.xlsx') 
-#merged=dfPeople.merge(df, left_on='CCPO ID', right_on='CCPO ID')
-#hasCP36=merged.loc[merged['cleanText'].astype(str).str.contains("CP:36")]
+for file in  ['textScrape 10302021 000246.xlsx','textScrape 10302021 015403.xlsx', 
+              'textScrape 11012021 172607.xlsx' ,'textScrape 11022021 160804.xlsx']:
+    df=pd.read_excel(file)
+    test=pd.concat([test,df])
+test['PD Number']=test['PD Text'].apply(getPD)    
+goods=list(test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)]['CCPO ID'].unique())
+bads=list(test.loc[test['PD Number'].astype(str)!=test['CCPO ID'].astype(str)]['CCPO ID'].unique())
+realBads=[i for i in bads if i not in goods]
 
+final=test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)].drop_duplicates()
+badDF=pd.DataFrame(data=realBads, columns=['CCPO ID'])
+forExport=pd.concat([final, badDF])
+
+forExport.to_csv("aggregatePD.csv")
+#undoneIDs=pd.DataFrame(data=realBads, columns=['CCPO ID'])
+#undoneIDs.to_excel("undoneIDs.xlsx")
+"""
