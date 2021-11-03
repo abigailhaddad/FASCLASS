@@ -197,6 +197,28 @@ df['Date of Classification Review']=df['PD Text'].apply(reviewDataClassification
 df['Year of Classification Review']=df['Date of Classification Review'].str[-4:]
 df['Position Text']=df['PD Text'].apply(positionDuties)
 
+"""      
+test=pd.read_csv("aggregatePD.csv")
+test['PD Number']=test['PD Text'].apply(getPD)
+test=test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)]
+
+for file in  ['textScrape 10302021 000246.xlsx','textScrape 10302021 015403.xlsx', 
+              'textScrape 11012021 172607.xlsx' ,'textScrape 11022021 160804.xlsx']:
+    df=pd.read_excel(file)
+    test=pd.concat([test,df])
+test['PD Number']=test['PD Text'].apply(getPD)    
+goods=list(test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)]['CCPO ID'].unique())
+bads=list(test.loc[test['PD Number'].astype(str)!=test['CCPO ID'].astype(str)]['CCPO ID'].unique())
+realBads=[i for i in bads if i not in goods]
+
+final=test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)].drop_duplicates()
+badDF=pd.DataFrame(data=realBads, columns=['CCPO ID'])
+forExport=pd.concat([final, badDF])
+
+forExport.to_csv("aggregatePD.csv")
+#undoneIDs=pd.DataFrame(data=realBads, columns=['CCPO ID'])
+#undoneIDs.to_excel("undoneIDs.xlsx")
+"""
 
 
 
