@@ -67,7 +67,7 @@ def findCareerCategory(string):
     split=joined.split("C L")[0]
     return(split.replace(":","").strip())
 
-"""
+
 
 #df=pd.read_csv('aggregatePD.csv')
 dfPeople=readData('CP DATA 22SEP2021.xlsx') 
@@ -81,14 +81,10 @@ for i in dfPeople.columns:
     print(len(dfPeople[i].unique())/len(dfPeople))
     print()
 
-"""
 hasCP36=merged.loc[merged['PD Text'].astype(str).str.contains("CP:36")]
 
 
-def findCP(string):
-    listNext=string.split("CP")
-    lastOne="CP"+listNext[-1][0:10]
-    return(lastOne)
+
     
 def findCarCat(string):
     try:
@@ -132,7 +128,7 @@ comptroller['career pr'].value_counts()
 
 allValues=merged['career pr'].unique()
 missings=[i for i in allValues if str(i) not in list(merged['Ar Psn Car Pgm Cd'].astype(str).unique())]
-"""
+
 fileName="textScrape 10072021 035854.xlsx"
 df=pd.read_excel(fileName)
 text=df.iloc[5]['PD Text']
@@ -196,8 +192,7 @@ df['Organization Title']=df['PD Text'].apply(getOrgTitle)
 df['Date of Classification Review']=df['PD Text'].apply(reviewDataClassification)
 df['Year of Classification Review']=df['Date of Classification Review'].str[-4:]
 df['Position Text']=df['PD Text'].apply(positionDuties)
-
-"""      
+ 
 test=pd.read_csv("aggregatePD.csv")
 test['PD Number']=test['PD Text'].apply(getPD)
 test=test.loc[test['PD Number'].astype(str)==test['CCPO ID'].astype(str)]
@@ -218,7 +213,21 @@ forExport=pd.concat([final, badDF])
 forExport.to_csv("aggregatePD.csv")
 #undoneIDs=pd.DataFrame(data=realBads, columns=['CCPO ID'])
 #undoneIDs.to_excel("undoneIDs.xlsx")
+
+
+def findCP(string):
+    listNext=string.split("CP")
+    lastOne="CP"+listNext[-1][0:10]
+    return(lastOne)
+
+df=readData('CP DATA 22SEP2021.xlsx')
+pds=pd.read_csv("aggregatePD.csv", engine='python')
+df['CCPO ID']=df['Ccpo Id']+df['CPCN']
+df['Name Pers']=df['Name Pers'].str.replace("TRAN,,", "TRAN,")
+merged=df.merge(pds, left_on='CCPO ID', right_on='CCPO ID', how='left')
+merged.count()
+
 """
 
-
-
+aList=['CCPO_ID', 'PD_Text', 'CCPO_ID_2', 'untitled_column', 'PD', 'Sequence', 'ReplacesPD', 'OrganizationTitle', 'POSITIONLOCATION', 'ServicingCPAC', 'Agency', 'Installation', 'ArmyCommand', 'Region', 'CommandCode', 'POSITIONCLASSIFICATIONSTANDARDSUSEDINCLASSIFYINGGRADINGPOSITION', 'SupervisoryCertification', 'SupervisorName', 'ReviewedDate', 'ClassificationReview', 'ReviewedBy', 'ReviewedDate_2', 'POSITIONDUTIES', 'FairLaborStandardsActFLSADetermination', 'FLSACommentsExplanations', 'CyberWorkforce', 'PrimaryWorkRole', 'AdditionalWorkRole1', 'AdditionalWorkRole2', 'FLSA', 'FLSAWorksheet', 'FLSAAppeal', 'BusCode', 'MissionCategory', 'WorkCategory', 'WorkLevel', 'AcquisitionPosition', 'CAP', 'CareerCategory', 'CareerLevel', 'FunctionalCode', 'Interdisciplinary', 'SupervisorStatus', 'PDStatus', 'CONDITIONOFEMPLOYMENT', 'DrugTestRequired', 'FinancialManagementCertification', 'PositionDesignation', 'PositionSensitivity', 'SecurityAccess', 'EmergencyEssential', 'RequiresAccesstoFirearms', 'PersonnelReliabilityPosition', 'InformationAssurance', 'InfluenzaVaccination', 'FinancialDisclosure', 'FinancialDisclosure_2', 'EnterprisePosition', 'POSITIONASSIGNMENT', 'CompetitiveArea', 'CompetitiveLevel', 'CareerProgram', 'CareerLadderPD', 'TargetGradeFPL', 'CareerPos1', 'CareerPos2', 'CareerPos3', 'CareerPos4', 'CareerPos5', 'Title', 'PayType']
+len(a)
