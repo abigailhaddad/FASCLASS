@@ -12,7 +12,7 @@ from fuzzywuzzy import fuzz
 
 os.chdir(os.getcwd().replace("code", "data"))
 pds=pd.read_csv("aggregatePD.csv", engine='python')
-pds['Status'] = np.where(pds['PD Text'].str.len()<5,"Missing","Not Missing")
+pds['Status'] = np.where(pds['PD Text'].fillna("").astype(str).str.len()<5,"Missing","Not Missing")
 
 pds[['CCPO ID', 'Status']].to_excel("PDByStatus.xlsx", index=False)
 #########
@@ -35,22 +35,19 @@ dictMissing={}
 number=0
 for i in missings:
     number=number+1
+    listi=[]
     for j in notmissing:
         relationship=fuzz.ratio(i,j)
-        listi=[]
         if relationship>85:
             listi.append(j)
-        if len(listi)>0:
-            dictMissing[i]=listi
+    if len(listi)>0:
+        dictMissing[i]=listi
     if number % 10 ==0:
         print(number)
 
-dfCloseMatch=pd.DataFrame.from_dict(dictMissing, orient='index')
-
-dfCloseMatch=pd.DataFrame.from_dict(dictMissing, orient='index')
+dfCloseMatch=pd.DataFrame({'Close PDs by Edit Distance': {k: ", ".join(v) for k, v in dictMissing.items()}})
 dfAll=pd.DataFrame(index=missings)
 dfMerge1=dfAll.merge(dfCloseMatch, left_index=True, right_index=True, how='left')
-dfMerge1.columns=['Close PDs by Edit Distance']
 
 repeatCPs=[i for i in missings if i[0:2]==i[2:4]]
 fixedCPs=[i[2:] for i in repeatCPs]
