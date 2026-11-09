@@ -41,16 +41,31 @@ def genPieces():
               "FLSA Comments/Explanations:", "CONDITIONS OF EMPLOYMENT & NOTES:"]
     return(listOfPieces)
     
+def getSectionToNextLabel(text, label, laterLabels):
+    """
+    Returns (text after label, field value). The field ends at the nearest later label
+    that is actually present; if none is present (e.g. the last label) it runs to the end
+    of the text. If the label itself is absent, the text is returned unchanged with an
+    empty field, so the remaining labels can still be parsed.
+    """
+    if not isinstance(text, str) or label not in text:
+        return (text, None)
+    rest=text.split(label, 1)[1]
+    ends=[rest.find(nxt) for nxt in laterLabels if nxt in rest]
+    if ends:
+        return (rest, rest[:min(ends)].strip())
+    return (rest, rest.strip())
+
 def addCols(df, col, listOfItems):
-    for num in range(0, len(listOfItems)-1):
+    for num in range(0, len(listOfItems)):
         colName= ''.join(x for x in listOfItems[num] if x.isalnum())
         if colName in df.columns:
             colName=colName+"_2"
         print(colName)
-        items=df.apply(lambda x: getSection(x[col], listOfItems[num], listOfItems[num+1]),axis=1)
+        items=df.apply(lambda x: getSectionToNextLabel(x[col], listOfItems[num], listOfItems[num+1:]),axis=1)
         df[col], df[colName]=items.str[0], items.str[1]
     return(df)
-    
+
 def getReplaces(string): 
     if "INTERDISCIPLINARY" in string:
         return("INTERDISCIPLINARY")
